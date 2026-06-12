@@ -1,0 +1,128 @@
+/* UI de la mascotte — tout est préfixé .mascot-ui pour ne pas polluer la page */
+
+.mascot-ui {
+  all: initial;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+#mascot-canvas {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  pointer-events: none !important;
+  z-index: 2147483645 !important;
+}
+
+/* Zone cliquable qui suit le personnage (drag + clic + micro) */
+#mascot-hitbox {
+  position: fixed !important;
+  width: 56px;
+  height: 72px;
+  z-index: 2147483646 !important;
+  cursor: grab;
+  background: transparent;
+  border: none;
+}
+#mascot-hitbox.dragging { cursor: grabbing; }
+
+/* Bouton micro (apparaît au survol) */
+#mascot-mic {
+  position: absolute;
+  top: -14px;
+  right: -18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #6c63ff, #3b82f6);
+  color: #fff;
+  font-size: 14px;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+#mascot-hitbox:hover #mascot-mic { opacity: 1; transform: scale(1); }
+#mascot-mic.listening {
+  opacity: 1;
+  transform: scale(1.15);
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  animation: mascot-pulse 1s infinite;
+}
+@keyframes mascot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* Bulle de dialogue */
+#mascot-bubble {
+  position: fixed !important;
+  max-width: 240px;
+  background: #fff;
+  color: #1e1b4b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 9px 13px;
+  border-radius: 14px 14px 14px 3px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  z-index: 2147483647 !important;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+#mascot-bubble.show { opacity: 1; transform: translateY(0); }
+#mascot-bubble.listening-style {
+  background: #fef3c7;
+  font-style: italic;
+}
+
+/* Boîte de confirmation d'action ("je vais cliquer sur X — ok ?") */
+#mascot-confirm {
+  position: fixed !important;
+  width: 220px;
+  background: #1e1b4b;
+  color: #e0e7ff;
+  border: 1px solid #6c63ff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  z-index: 2147483647 !important;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+#mascot-confirm.show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+#mascot-confirm .mascot-confirm-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+#mascot-confirm button {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+#mascot-confirm-yes { background: linear-gradient(135deg, #6c63ff, #3b82f6); color: #fff; }
+#mascot-confirm-no { background: transparent; color: #a5b4fc; border: 1px solid #4f46e5 !important; }
+#mascot-confirm button:hover { filter: brightness(1.2); }

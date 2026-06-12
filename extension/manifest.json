@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Compagnon — mascotte vocale",
+  "version": "0.1.0",
+  "description": "Une mascotte animée qui vit dans la page : elle marche sur les éléments HTML, parle à voix haute et vous écoute.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/physics.js",
+        "content/sprite.js",
+        "content/voice.js",
+        "content/perception.js",
+        "content/actions.js",
+        "content/main.js"
+      ],
+      "css": ["content/mascot.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Compagnon"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mascotte-compagnon@akraotr.dev",
+      "strict_min_version": "115.0"
+    }
+  }
+}

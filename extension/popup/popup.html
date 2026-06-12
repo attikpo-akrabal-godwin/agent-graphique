@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 340px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, #1e1b4b, #312e81);
+    color: #e0e7ff;
+    padding: 16px;
+  }
+  h1 { font-size: 16px; display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+  label { font-size: 12.5px; font-weight: 600; }
+  .hint { font-size: 11px; color: #a5b4fc; margin-top: -8px; margin-bottom: 12px; }
+
+  /* Switch */
+  .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: #4338ca55; border: 1px solid #6366f1; border-radius: 22px; transition: 0.2s;
+  }
+  .slider::before {
+    content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+    background: #c7d2fe; border-radius: 50%; transition: 0.2s;
+  }
+  input:checked + .slider { background: #6c63ff; }
+  input:checked + .slider::before { transform: translateX(18px); background: #fff; }
+
+  select, input[type=range], textarea {
+    width: 100%; background: #1e1b4bcc; border: 1px solid #4f46e5;
+    color: #e0e7ff; border-radius: 8px; font-size: 12.5px;
+  }
+  select { padding: 6px 8px; }
+  textarea {
+    min-height: 110px; padding: 8px; resize: vertical; line-height: 1.4;
+    font-family: inherit;
+  }
+  .range-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .range-row label { width: 52px; flex-shrink: 0; }
+  .range-row output { width: 32px; text-align: right; font-size: 12px; color: #a5b4fc; }
+
+  button {
+    width: 100%; padding: 9px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #6c63ff, #3b82f6); color: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 4px;
+  }
+  button:hover { filter: brightness(1.15); }
+  button.secondary { background: #4338ca66; border: 1px solid #6366f1; margin-top: 8px; }
+  .saved { font-size: 11px; color: #4ade80; text-align: center; height: 14px; margin-top: 6px; }
+  hr { border: none; border-top: 1px solid #4f46e555; margin: 14px 0; }
+</style>
+</head>
+<body>
+  <h1>🟣 Compagnon</h1>
+
+  <div class="row">
+    <label for="enabled">Mascotte activée</label>
+    <span class="switch"><input type="checkbox" id="enabled"><span class="slider"></span></span>
+  </div>
+  <div class="row">
+    <label for="wander">Déambulation autonome</label>
+    <span class="switch"><input type="checkbox" id="wander"><span class="slider"></span></span>
+  </div>
+
+  <hr>
+
+  <div class="row"><label for="voice">Voix</label></div>
+  <select id="voice" style="margin-bottom:12px"></select>
+
+  <div class="range-row">
+    <label for="rate">Débit</label>
+    <input type="range" id="rate" min="0.5" max="2" step="0.1">
+    <output id="rateVal">1.0</output>
+  </div>
+  <div class="range-row">
+    <label for="pitch">Timbre</label>
+    <input type="range" id="pitch" min="0.5" max="2" step="0.05">
+    <output id="pitchVal">1.05</output>
+  </div>
+
+  <button class="secondary" id="testVoice">🔊 Tester la voix sur la page</button>
+
+  <hr>
+
+  <div class="row"><label for="apiKey">Clé API Anthropic</label></div>
+  <input type="password" id="apiKey" placeholder="sk-ant-…" style="width:100%; padding:7px 8px; margin-bottom:10px; background:#1e1b4bcc; border:1px solid #4f46e5; color:#e0e7ff; border-radius:8px; font-size:12px;">
+  <div class="row">
+    <label for="model">Modèle</label>
+    <select id="model" style="width:200px">
+      <option value="claude-haiku-4-5">Haiku 4.5 (rapide)</option>
+      <option value="claude-sonnet-4-6">Sonnet 4.6 (malin)</option>
+    </select>
+  </div>
+  <p class="hint">Sans clé, la mascotte reste en mode hors-ligne (elle parle mais ne réfléchit pas).</p>
+
+  <div class="row"><label for="systemPrompt">Prompt système (personnalité)</label></div>
+  <textarea id="systemPrompt" placeholder="Tu es un assistant sarcastique qui déteste les formulaires…"></textarea>
+  <p class="hint" style="margin-top:6px">Injecté en tête de chaque appel IA : personnalité, rôle, contraintes, langue, ton.</p>
+
+  <hr>
+
+  <div class="row"><label>Permissions sur <span id="siteName" style="color:#a5b4fc">ce site</span></label></div>
+  <p class="hint">Coché = la mascotte agit sans demander confirmation à chaque fois.</p>
+  <div id="permList">
+    <div class="row"><label>Cliquer sur des boutons</label><span class="switch"><input type="checkbox" id="perm-click"><span class="slider"></span></span></div>
+    <div class="row"><label>Remplir des champs</label><span class="switch"><input type="checkbox" id="perm-fill"><span class="slider"></span></span></div>
+    <div class="row"><label>Soumettre des formulaires</label><span class="switch"><input type="checkbox" id="perm-submit"><span class="slider"></span></span></div>
+    <div class="row"><label>Ouvrir des liens</label><span class="switch"><input type="checkbox" id="perm-open"><span class="slider"></span></span></div>
+    <div class="row"><label>Faire défiler la page</label><span class="switch"><input type="checkbox" id="perm-scroll"><span class="slider"></span></span></div>
+    <div class="row"><label>Lire le contenu à voix haute</label><span class="switch"><input type="checkbox" id="perm-read"><span class="slider"></span></span></div>
+  </div>
+
+  <button id="save">Enregistrer</button>
+  <div class="saved" id="savedMsg"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
