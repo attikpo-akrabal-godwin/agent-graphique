@@ -117,5 +117,10 @@ window.MascotPerception = (() => {
     return el && el.isConnected ? el : null;
   }
 
-  return { snapshot, get, labelOf };
+  /** Signaux légers pour les réactions proactives (sans reconstruire tout le snapshot). */
+  function signals() {
+    return { errors: collectErrors(), modalOpen: modalOpen(), loading: isLoading() };
+  }
+
+  return { snapshot, get, labelOf, signals };
 })();

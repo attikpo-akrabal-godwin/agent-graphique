@@ -18,6 +18,7 @@
         "content/voice.js",
         "content/perception.js",
         "content/actions.js",
+        "content/chat.js",
         "content/main.js"
       ],
       "css": ["content/mascot.css"],

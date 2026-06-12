@@ -6,6 +6,8 @@ const $ = (id) => document.getElementById(id);
 const DEFAULTS = {
   enabled: true,
   wander: true,
+  proactive: true,
+  vision: true,
   lang: 'fr-FR',
   rate: 1.0,
   pitch: 1.05,
@@ -63,6 +65,8 @@ function load() {
   chrome.storage.sync.get(DEFAULTS, (s) => {
     $('enabled').checked = s.enabled;
     $('wander').checked = s.wander;
+    $('proactive').checked = s.proactive !== false;
+    $('vision').checked = s.vision !== false;
     $('rate').value = s.rate;
     $('pitch').value = s.pitch;
     $('rateVal').textContent = Number(s.rate).toFixed(1);
@@ -83,6 +87,8 @@ function gather() {
   return {
     enabled: $('enabled').checked,
     wander: $('wander').checked,
+    proactive: $('proactive').checked,
+    vision: $('vision').checked,
     rate: parseFloat($('rate').value),
     pitch: parseFloat($('pitch').value),
     voiceURI,
@@ -110,6 +116,8 @@ $('pitch').addEventListener('input', () => { $('pitchVal').textContent = parseFl
 // Les interrupteurs sauvegardent immédiatement
 $('enabled').addEventListener('change', () => save(false));
 $('wander').addEventListener('change', () => save(false));
+$('proactive').addEventListener('change', () => save(false));
+$('vision').addEventListener('change', () => save(false));
 
 $('save').addEventListener('click', () => save(true));
 

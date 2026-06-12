@@ -11,6 +11,7 @@
   const Physics = window.MascotPhysics;
   const Sprite = window.MascotSprite;
   const Voice = window.MascotVoice;
+  const Chat = window.MascotChat;
 
   // ---------- État ----------
   const body = {
@@ -22,6 +23,7 @@
   const state = {
     enabled: true,
     wander: true,
+    proactive: true,
     behavior: 'fall',        // fall | idle | walk | jump | drag
     facing: 1,
     walkPhase: 0,
@@ -74,9 +76,11 @@
     document.documentElement.appendChild(canvas);
     document.documentElement.appendChild(hitbox);
     document.documentElement.appendChild(bubble);
+    if (Chat) Chat.mount();
   }
   function unmount() {
     canvas.remove(); hitbox.remove(); bubble.remove();
+    if (Chat) Chat.unmount();
     Voice.stop();
   }
 
@@ -94,6 +98,7 @@
       bubble.textContent = text;
       bubble.classList.add('show');
       bubble.classList.remove('listening-style');
+      if (Chat && Chat.isMounted()) Chat.addMascotMessage(text);
       setEmotion(emotion, 6000);
       clearTimeout(bubbleTimer);
       const hide = () => {
@@ -318,11 +323,13 @@
     setEmotion('thinking', 9999999);
     bubble.textContent = '…';
     bubble.classList.add('show');
+    if (Chat && Chat.isMounted()) Chat.setTyping(true);
     const snapshot = window.MascotPerception ? window.MascotPerception.snapshot(body) : null;
     try {
       chrome.runtime.sendMessage(
         { type: 'USER_INTENT', text, snapshot, pageTitle: document.title, url: location.href },
         (res) => {
+          if (Chat && Chat.isMounted()) Chat.setTyping(false);
           if (chrome.runtime.lastError || !res) {
             say('Oups, je n’ai pas pu réfléchir. Réessaie ?', { emotion: 'sad' });
             return;
@@ -335,7 +342,39 @@
         }
       );
     } catch (_) {
+      if (Chat && Chat.isMounted()) Chat.setTyping(false);
       say('Mon cerveau est déconnecté !', { emotion: 'sad' });
+    }
+  }
+
+  // ---------- Réactions proactives ----------
+  // La mascotte remarque seule les erreurs / modales qui apparaissent et propose son aide.
+  let lastProactiveAt = 0;
+  let lastSignature = '';
+
+  function checkProactive() {
+    if (!state.proactive || state.busy || state.behavior === 'drag') return;
+    if (Voice.isListening() || Voice.isSpeaking()) return;
+    const P = window.MascotPerception;
+    if (!P || !P.signals) return;
+
+    const sig = P.signals();
+    const errKey = (sig.errors || []).join('|');
+    const signature = errKey + (sig.modalOpen ? '#modal' : '');
+    if (signature === lastSignature) return; // rien de nouveau
+    lastSignature = signature;
+
+    const now = performance.now();
+    if (now - lastProactiveAt < 25000) return; // anti-spam
+    if (sig.loading) return;
+
+    if (errKey) {
+      lastProactiveAt = now;
+      setEmotion('surprised', 1500);
+      say('Hmm, je vois une erreur : « ' + sig.errors[0].slice(0, 80) + ' ». Je peux t’aider ?', { emotion: 'thinking', sticky: false });
+    } else if (sig.modalOpen) {
+      lastProactiveAt = now;
+      say('Une fenêtre s’est ouverte — tu veux un coup de main ?', { emotion: 'surprised' });
     }
   }
 
@@ -343,7 +382,7 @@
   let mutationTimer = null;
   const observer = new MutationObserver(() => {
     clearTimeout(mutationTimer);
-    mutationTimer = setTimeout(() => Physics.markDirty(), 300);
+    mutationTimer = setTimeout(() => { Physics.markDirty(); checkProactive(); }, 300);
   });
 
   addEventListener('scroll', () => Physics.markDirty(), { passive: true });
@@ -354,6 +393,7 @@
     if (!s) return;
     Voice.configure(s);
     state.wander = s.wander !== false;
+    state.proactive = s.proactive !== false;
     if (s.enabled === false && state.enabled) {
       state.enabled = false;
       stopAll();
@@ -367,7 +407,7 @@
     if (area !== 'sync') return;
     const s = {};
     for (const k in changes) s[k] = changes[k].newValue;
-    applySettings(Object.assign({ enabled: state.enabled, wander: state.wander }, s));
+    applySettings(Object.assign({ enabled: state.enabled, wander: state.wander, proactive: state.proactive }, s));
   });
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -396,6 +436,11 @@
     cancelAnimationFrame(rafId);
     observer.disconnect();
     unmount();
+  }
+
+  // ---------- Branchement du chat texte ----------
+  if (Chat) {
+    Chat.init({ onSend: (text) => handleUserIntent(text) });
   }
 
   // ---------- Branchement de l'exécuteur agentique ----------
@@ -430,6 +475,7 @@
     if (s) {
       Voice.configure(s);
       state.wander = s.wander !== false;
+      state.proactive = s.proactive !== false;
       state.enabled = s.enabled !== false;
     }
     if (state.enabled) startAll();

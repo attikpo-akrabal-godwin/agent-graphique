@@ -8,7 +8,7 @@
  *   click  — cliquer sur des boutons
  *   fill   — remplir des champs
  *   submit — soumettre des formulaires
- *   open   — ouvrir des liens
+ *   open   — ouvrir des liens / naviguer
  *   scroll — faire défiler la page
  *   read   — lire le contenu à voix haute
  */
@@ -32,22 +32,35 @@ window.MascotActions = (() => {
   }
 
   function categoryOf(step, el) {
-    if (step.action === 'read-element') return 'read';
-    if (step.action === 'scroll-to') return 'scroll';
-    if (step.action !== 'interact-element') return null;
-    if (step.kind === 'type') return 'fill';
-    if (el) {
-      if (el.type === 'submit' || (el.tagName === 'BUTTON' && el.closest('form') && el.type !== 'button')) return 'submit';
-      if (el.tagName === 'A') return 'open';
+    switch (step.action) {
+      case 'read-element': return 'read';
+      case 'scroll-to':
+      case 'scroll-by': return 'scroll';
+      case 'navigate': return 'open';
+      case 'select-option':
+      case 'press-key': return 'fill';
+      case 'set-checkbox': return 'click';
+      case 'submit-form': return 'submit';
+      case 'hover':
+      case 'go-back':
+      case 'go-forward':
+      case 'wait': return null; // gestes peu sensibles : pas de confirmation
+      case 'interact-element':
+        if (step.kind === 'type') return 'fill';
+        if (el) {
+          if (el.type === 'submit' || (el.tagName === 'BUTTON' && el.closest('form') && el.type !== 'button')) return 'submit';
+          if (el.tagName === 'A') return 'open';
+        }
+        return 'click';
+      default: return null;
     }
-    return 'click';
   }
 
   const CONFIRM_TEXT = {
     click: (l) => `Je vais cliquer sur « ${l} » — ok ?`,
     fill: (l) => `Je vais écrire dans « ${l} » — ok ?`,
     submit: (l) => `Je vais soumettre via « ${l} » — ok ?`,
-    open: (l) => `Je vais ouvrir le lien « ${l} » — ok ?`,
+    open: (l) => `Je vais naviguer vers « ${l} » — ok ?`,
     scroll: () => `Je vais faire défiler la page — ok ?`,
     read: (l) => `Je te lis « ${l} » ?`
   };
@@ -132,6 +145,30 @@ window.MascotActions = (() => {
     return t.slice(0, 350) || 'Cet élément est vide.';
   }
 
+  function fireHover(el) {
+    for (const type of ['pointerover', 'mouseover', 'mouseenter', 'mousemove']) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    }
+  }
+
+  function dispatchKey(el, key) {
+    const opts = { bubbles: true, cancelable: true, key, code: key };
+    const tgt = el || document.activeElement || document.body;
+    if (tgt.focus) tgt.focus();
+    for (const type of ['keydown', 'keypress', 'keyup']) {
+      tgt.dispatchEvent(new KeyboardEvent(type, opts));
+    }
+  }
+
+  function selectOption(el, step) {
+    if (el.tagName !== 'SELECT') return;
+    const wanted = String(step.value != null ? step.value : step.text || '');
+    let opt = Array.from(el.options).find((o) => o.value === wanted);
+    if (!opt) opt = Array.from(el.options).find((o) => (o.textContent || '').trim() === wanted);
+    if (!opt) opt = Array.from(el.options).find((o) => (o.textContent || '').toLowerCase().includes(wanted.toLowerCase()));
+    if (opt) { el.value = opt.value; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
+  }
+
   // ---------- Exécution ----------
   async function moveTo(el, step, { jump = false } = {}) {
     const r = rectOf(el, step);
@@ -197,6 +234,83 @@ window.MascotActions = (() => {
         await wait(400);
         break;
       }
+
+      case 'scroll-by': {
+        if (!(await ensureAllowed(step, null, 'la page'))) throw new Error('refused');
+        const dy = Number(step.dy) || 500;
+        window.scrollBy({ top: dy, behavior: 'smooth' });
+        await wait(700);
+        window.MascotPhysics.markDirty();
+        break;
+      }
+
+      case 'hover':
+        if (!el) break;
+        await moveTo(el, step, { jump: true });
+        fireHover(el);
+        await wait(400);
+        window.MascotPhysics.markDirty();
+        break;
+
+      case 'navigate': {
+        const url = String(step.url || '');
+        if (!/^https?:\/\//i.test(url)) break;
+        if (!(await ensureAllowed(step, null, url.slice(0, 60)))) throw new Error('refused');
+        await hooks.say('J’y vais !', { emotion: 'happy' });
+        location.assign(url); // recharge la page (le content script se réinjecte)
+        break;
+      }
+
+      case 'go-back':
+        await hooks.say('Je reviens en arrière.', { emotion: 'talking' });
+        history.back();
+        break;
+
+      case 'go-forward':
+        history.forward();
+        break;
+
+      case 'select-option':
+        if (!el) break;
+        if (!(await ensureAllowed(step, el, label))) throw new Error('refused');
+        await moveTo(el, step, { jump: true });
+        selectOption(el, step);
+        window.MascotPhysics.markDirty();
+        await wait(300);
+        break;
+
+      case 'set-checkbox': {
+        if (!el) break;
+        if (!(await ensureAllowed(step, el, label))) throw new Error('refused');
+        await moveTo(el, step, { jump: true });
+        const want = step.checked !== false;
+        if (!!el.checked !== want) el.click();
+        await wait(250);
+        break;
+      }
+
+      case 'press-key':
+        if (!(await ensureAllowed(step, el, label || 'cet élément'))) throw new Error('refused');
+        if (el) await moveTo(el, step, { jump: true });
+        dispatchKey(el, step.key || 'Enter');
+        window.MascotPhysics.markDirty();
+        await wait(300);
+        break;
+
+      case 'submit-form': {
+        if (!el) break;
+        if (!(await ensureAllowed(step, el, label))) throw new Error('refused');
+        await moveTo(el, step, { jump: true });
+        const form = el.form || (el.closest && el.closest('form'));
+        if (form) { if (form.requestSubmit) form.requestSubmit(); else form.submit(); }
+        else el.click();
+        await wait(400);
+        break;
+      }
+
+      case 'wait':
+        await wait(Math.min(Math.max(Number(step.ms) || 500, 0), 5000));
+        break;
 
       default:
         // étape inconnue : on l'ignore poliment
